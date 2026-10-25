@@ -37,7 +37,7 @@ Two reasons. Every transaction pays a fee, and the deal payment is escrowed for 
 
 ## Why can't I share an encrypted file with a friend?
 
-The app needs your friend's public key to seal the file key to them. It comes from the chain's registry, which records it the first time an account sends a transaction. Ask them to send any small transaction first.
+The app needs your friend's public key to seal the file key to them. It comes from the chain's registry, which records it the first time an account sends a transaction. The easy way: ask them to open the vault's Overview tab and press **Publish my public key**. That signs a 1 uvault transfer to themselves, which costs only the 0.001 VAULT fee, so they need a little balance first (the [faucet](/docs/guides/faucet) covers that). Uploading a file also does it. Details: [Publish your public key](/docs/guides/web-vault#publish-your-public-key).
 
 ## Does revoking remove someone's access immediately?
 

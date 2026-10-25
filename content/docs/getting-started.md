@@ -29,6 +29,8 @@ The native token is `uvault` (1 VAULT = 1,000,000 uvault) and addresses start wi
 3. Choose a file, leave **Encrypt in this browser** on, and upload. The app signs two transactions (commit the manifest, open the deal), sends the chunks to the provider, and waits until the provider holds the complete object.
 4. Under **My files** you can watch the deal turn from `pending` to `open`, see each replica's last proven block, download and decrypt, or share with another address.
 
+To *receive* an encrypted file from someone, press **Publish my public key** on the Overview tab once. It costs one 0.001 VAULT fee, and an upload does it as a side effect. See [why](/docs/guides/web-vault#publish-your-public-key).
+
 Read [Using the web vault](/docs/guides/web-vault) for details and limits.
 
 ## Use the command line

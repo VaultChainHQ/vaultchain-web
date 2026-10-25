@@ -33,6 +33,10 @@ curl -sS -X POST https://vaultchain-web.vercel.app/api/faucet \
 | 429 | `address_cooldown`, `ip_limit`, `too_many_requests`, `faucet_busy` | A limit below was hit. `Retry-After` says when to retry. |
 | 502, 503 | `node_error`, `node_busy`, `faucet_empty`, `disabled`, `not_devnet` | The node, the faucet's balance or its configuration prevented the transfer. |
 
+### After you are funded
+
+A faucet drip is a transfer *to* you, so it does not put your public key on chain. If someone will share encrypted files with you, press **Publish my public key** on the Overview tab once (1 uvault to yourself, 0.001 VAULT fee). See [Publish your public key](/docs/guides/web-vault#publish-your-public-key).
+
 ## Limits, honestly
 
 | Limit | Value | How it is enforced |

@@ -53,9 +53,17 @@ Clearing your browser data deletes your profiles. Back up first.
 
 **My files** lists your manifests with their deal state, expiry height and each replica's last proven block. **Shared with me** lists access grants where you are the grantee. A download fetches chunks with a read token you sign locally, verifies the Merkle root, and (for encrypted files) decrypts in the browser and offers you the plaintext.
 
+## Publish your public key
+
+To share an encrypted file with you, someone has to seal the file key to your **public key**, and the chain only learns an account's public key from the **first transaction that account signs**. Receiving funds does not do it, because the faucet or a friend signs that transfer, not you. Until you have signed something, an owner who tries to grant you an encrypted file gets the message "the grantee has not signed a transaction yet, so their public key is unknown on chain".
+
+The Overview tab shows **Public key on chain: not yet** for a new profile, with a **Publish my public key** button (unlock the profile and fund it first, see the [faucet](/docs/guides/faucet)). It signs the smallest possible transaction: a `bank/Send` of **1 uvault from your address to itself**. You keep the 1 uvault; the only cost is the normal fee (1,000 uvault, 0.001 VAULT). Afterwards the tab reads "Public key on chain: yes". It is a one-time step per address, and it happens on its own the first time you upload a file, since an upload also signs transactions. It reveals nothing new: the public key is derivable from any signature you make and is not secret.
+
+You only need this to *receive* encrypted files. Granting plaintext files, uploading, and sharing files you own do not require it.
+
 ## Sharing
 
-On an owned file, **Grant** takes a contact or a pasted address and an expiry. For an encrypted file the app looks up the grantee's public key on chain and seals the file key to it. If the person has never sent a transaction they have no public key on chain yet and cannot be granted an encrypted file. **Revoke** removes their grant and key envelope; see [revocation limits](/docs/concepts/access-and-encryption#revoking).
+On an owned file, **Grant** takes a contact or a pasted address and an expiry. For an encrypted file the app looks up the grantee's public key on chain and seals the file key to it. If the person has never signed a transaction they have no public key on chain yet and cannot be granted an encrypted file; ask them to press **Publish my public key** on their Overview tab first (see above). **Revoke** removes their grant and key envelope; see [revocation limits](/docs/concepts/access-and-encryption#revoking).
 
 ## Why there is no "log in with email"
 
