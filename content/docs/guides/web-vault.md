@@ -45,7 +45,7 @@ Clearing your browser data deletes your profiles. Back up first.
 
 ## Uploading
 
-1. Unlock a profile with a balance. The page shows your balance and the current block height.
+1. Unlock a profile with a balance. A new profile has none: press **Get 100 devnet VAULT** on the Overview tab ([faucet guide](/docs/guides/faucet)). The page shows your balance and the current block height.
 2. Choose a file (the browser vault accepts up to 64 MiB) and decide whether to **encrypt in this browser**. Encrypted uploads use [vle1](/docs/concepts/access-and-encryption); the file key is sealed to your own account key.
 3. The app builds chunks and the Merkle root, signs `CommitManifest` and `OpenDeal` (10,000 blocks, replication 1, payment 10 VAULT for small files), uploads the chunks to the provider and waits for the provider to accept. It shows a progress step for each stage.
 

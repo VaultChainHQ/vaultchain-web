@@ -25,7 +25,7 @@ The native token is `uvault` (1 VAULT = 1,000,000 uvault) and addresses start wi
 ## Store a file in the browser
 
 1. Open the [vault](/vault) and create a profile. Choose a passphrase you will not forget: it encrypts your private key on this device, and nobody can reset it.
-2. Copy your `vault1...` address. The devnet has no public faucet, so you need someone with devnet funds to send you some `uvault`. A small file costs two transaction fees (1,000 uvault each) plus the deal payment: 10 VAULT for the app's default 10,000-block deal.
+2. On the **Overview** tab press **Get 100 devnet VAULT** (the [faucet](/docs/guides/faucet): rate limited, devnet only). A small file costs two transaction fees (1,000 uvault each) plus the deal payment: 10 VAULT for the app's default 10,000-block deal.
 3. Choose a file, leave **Encrypt in this browser** on, and upload. The app signs two transactions (commit the manifest, open the deal), sends the chunks to the provider, and waits until the provider holds the complete object.
 4. Under **My files** you can watch the deal turn from `pending` to `open`, see each replica's last proven block, download and decrypt, or share with another address.
 

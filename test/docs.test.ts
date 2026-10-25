@@ -19,6 +19,7 @@ describe("docs content", () => {
       "guides/run-a-node",
       "guides/run-a-provider",
       "guides/fly-devnet",
+      "guides/faucet",
       "reference/cli",
       "reference/node-rest",
       "reference/provider-api",

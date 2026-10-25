@@ -13,7 +13,7 @@ No. It is a devnet run by one person for testing. Tokens have no value, there is
 
 ## How do I get devnet tokens?
 
-There is no public faucet. Genesis funds sit with the operator. Ask for a transfer to your `vault1...` address, or run [your own node](/docs/guides/run-a-node), where you fund yourself in genesis.
+Use the **Get devnet VAULT** button on the vault's Overview tab, or `POST /api/faucet`. It sends 100 VAULT once per address per day and is described in [the faucet guide](/docs/guides/faucet). A devnet reset wipes balances. To get more, or to test at scale, [run your own node](/docs/guides/run-a-node) and fund yourself in genesis.
 
 ## Can I store something important here?
 

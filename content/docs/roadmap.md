@@ -37,7 +37,7 @@ One validator on the timer engine, one provider, one volume each. No high availa
 
 - More providers on the public devnet, so replication and repair can be tried by anyone.
 - A browser-friendly CORS setting on the provider (`ALLOW_ORIGIN`) so the vault can talk to it directly instead of through the proxy.
-- A faucet with rate limits.
+- A faucet with a shared rate-limit store, so limits hold across server instances (today they are best effort, see [the faucet guide](/docs/guides/faucet)).
 - Key import between the CLI keyring and the web vault.
 
 These are ideas, not promises.

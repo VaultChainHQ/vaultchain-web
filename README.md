@@ -55,6 +55,7 @@ Environment (all optional, see [`.env.example`](.env.example)):
 | `NEXT_PUBLIC_VAULT_PROVIDER` | `https://vaultl1-provider.fly.dev` | storage provider |
 | `NEXT_PUBLIC_VAULT_PROVIDER_MODE` | `proxy` | `proxy` uses `/api/provider`; `direct` needs the provider to allow this origin |
 | `VAULT_PROVIDER_URL` | provider URL above | server-side override for the proxy target |
+| `FAUCET_PRIVATE_KEY` | unset (faucet disabled) | server-only secret: 64-hex key of a dedicated devnet faucet account (never `NEXT_PUBLIC_`) |
 
 `NEXT_PUBLIC_*` values are baked in at build time, so set them before building.
 
@@ -70,10 +71,14 @@ Environment (all optional, see [`.env.example`](.env.example)):
 
 CI (`.github/workflows/ci.yml`) runs lint, typecheck, tests and a production build on Node 22.
 
+## Devnet faucet
+
+`POST /api/faucet` (`lib/faucet.ts`) sends 100 VAULT from a dedicated key to an empty devnet address. It is devnet-only (it refuses unless the chain id contains `devnet`), limits are per address, per IP and per server instance, in memory and therefore best effort, and the faucet's own balance is the hard cap. Details and honest limits: [`content/docs/guides/faucet.md`](content/docs/guides/faucet.md).
+
 ## Layout
 
 ```
-app/            routes: landing, /docs, /vault, /api/provider
+app/            routes: landing, /docs, /vault, /api/provider, /api/faucet
 components/     site chrome, diagrams, docs search/nav, vault UI
 content/docs/   Markdown docs
 lib/            keystore, session, profile store, docs loader, proxy

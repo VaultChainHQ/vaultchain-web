@@ -5,6 +5,7 @@ import type { ProfileRecord } from "@/lib/vaultstore";
 import { DENOM } from "@/lib/vault/config";
 import { EXPLORER_URL } from "@/lib/links";
 import { CopyButton, ErrorNote } from "./ui";
+import { FaucetButton } from "./faucet";
 import { fmtBytes, fmtVault, node, provider, usePoll } from "./util";
 
 export function Overview({ profile }: { profile: ProfileRecord }) {
@@ -26,10 +27,11 @@ export function Overview({ profile }: { profile: ProfileRecord }) {
         <ErrorNote error={bal.error} />
         {bal.data === 0n ? (
           <p className="callout">
-            This address has no funds yet, so you cannot send transactions. There is no public faucet. Send your address to whoever runs the devnet, or{" "}
+            This address has no funds yet, so you cannot send transactions. Use the devnet faucet below, or{" "}
             <Link href="/docs/guides/run-a-node">run your own node</Link> and fund it from genesis.
           </p>
         ) : null}
+        <FaucetButton address={addr} onFunded={bal.reload} />
       </div>
       <div className="panel">
         <h3>Your address</h3>

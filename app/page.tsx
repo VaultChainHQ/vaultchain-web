@@ -237,7 +237,7 @@ curl -s https://vaultl1-devnet.fly.dev\\
               <li>One timer-engine validator on Fly (chain <span className="mono">vault-devnet-1</span>, 3 s blocks, reset 25 Oct 2026).</li>
               <li>One provider with 700 MB capacity.</li>
               <li>Test files and deals left behind by the end-to-end runs.</li>
-              <li>No faucet. Ask for funds or run your own node.</li>
+              <li>A rate-limited devnet faucet in the vault gives you test tokens. Resets wipe balances.</li>
             </ul>
           </div>
           <div className="card">
