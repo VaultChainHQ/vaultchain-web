@@ -196,7 +196,7 @@ export function VaultApp() {
                 ))}
               </div>
               <div role="tabpanel" id="tabpanel" aria-labelledby={`tab-${tab}`} className="tabpanel">
-                {tab === "overview" ? <Overview profile={active} /> : null}
+                {tab === "overview" ? <Overview profile={active} unlocked={unlocked} /> : null}
                 {tab === "upload" ? <UploadTab unlocked={unlocked} onUploaded={() => setRefresh((n) => n + 1)} /> : null}
                 {tab === "files" ? <FilesTab profile={active} unlocked={unlocked} refreshKey={refresh} /> : null}
                 {tab === "shared" ? <SharedTab profile={active} unlocked={unlocked} /> : null}

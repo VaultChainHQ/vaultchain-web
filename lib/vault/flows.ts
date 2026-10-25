@@ -40,6 +40,15 @@ export async function submitMsgs(node: NodeClient, signer: Signer, msgs: VaultMs
   return rec;
 }
 
+/**
+ * Make this account's public key known on chain by signing the smallest possible transaction: a
+ * 1 uvault transfer to itself (the fee is the only real cost). Others need the key to encrypt a
+ * file key for you, and the chain learns it from the first tx an account signs.
+ */
+export async function announceKey(node: NodeClient, signer: Signer, progress?: Progress): Promise<TxRecord> {
+  return submitMsgs(node, signer, [{ type: "bank/Send", to: signer.key.address, amount: [{ denom: DENOM, amount: "1" }] }], progress);
+}
+
 async function pool<T>(count: number, concurrency: number, fn: (i: number) => Promise<T>): Promise<T[]> {
   const out = new Array<T>(count);
   let next = 0;

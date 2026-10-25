@@ -1,14 +1,52 @@
 "use client";
 
 import Link from "next/link";
+import { useState } from "react";
+import type { Unlocked } from "@/lib/session";
 import type { ProfileRecord } from "@/lib/vaultstore";
+import { announceKey } from "@/lib/vault/flows";
 import { DENOM } from "@/lib/vault/config";
 import { EXPLORER_URL } from "@/lib/links";
 import { CopyButton, ErrorNote } from "./ui";
 import { FaucetButton } from "./faucet";
-import { fmtBytes, fmtVault, node, provider, usePoll } from "./util";
+import { errMsg, fmtBytes, fmtVault, node, provider, usePoll } from "./util";
 
-export function Overview({ profile }: { profile: ProfileRecord }) {
+function PublishKey({ address, unlocked }: { address: string; unlocked: Unlocked | null }) {
+  const pub = usePoll(`pub:${address}`, () => node.pubkey(address), 0);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  if (pub.data) return <p className="muted small" data-testid="pubkey-status">Public key on chain: yes. Others can share encrypted files with you.</p>;
+  if (pub.data === undefined && !pub.error) return null;
+  async function go() {
+    if (!unlocked) return;
+    setBusy(true);
+    setError(null);
+    try {
+      await announceKey(node, { key: unlocked.key, priv: unlocked.priv });
+      pub.reload();
+    } catch (e) {
+      setError(errMsg(e));
+    } finally {
+      setBusy(false);
+    }
+  }
+  return (
+    <div data-testid="pubkey-status">
+      <p className="muted small">
+        Public key on chain: <strong>not yet</strong>. Before someone can share an encrypted file with you, the chain needs your public key. It learns it from the first
+        transaction you sign (an upload does that too). This sends a 1 uvault transfer to yourself, costing only the 0.001 VAULT fee.
+      </p>
+      <p>
+        <button type="button" className="btn sm" onClick={go} disabled={busy || !unlocked} title={unlocked ? undefined : "Unlock the profile first"}>
+          {busy ? "Publishing…" : "Publish my public key"}
+        </button>
+      </p>
+      <ErrorNote error={error} />
+    </div>
+  );
+}
+
+export function Overview({ profile, unlocked }: { profile: ProfileRecord; unlocked: Unlocked | null }) {
   const addr = profile.entry.address;
   const bal = usePoll(`bal:${addr}`, () => node.balance(addr, DENOM), 10_000);
   const info = usePoll("info", () => node.info(), 10_000);
@@ -45,6 +83,7 @@ export function Overview({ profile }: { profile: ProfileRecord }) {
         <p className="muted small">
           To receive encrypted files from someone, your public key must be known on chain, which happens the first time this address signs any transaction.
         </p>
+        <PublishKey address={addr} unlocked={unlocked} />
       </div>
       <div className="panel">
         <h3>Network</h3>
