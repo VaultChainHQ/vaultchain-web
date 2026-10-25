@@ -1,3 +1,4 @@
+import { corsHeaders, preflightHeaders } from "@/lib/cors";
 import { Faucet, UVAULT_PER_VAULT, clientIp } from "@/lib/faucet";
 import { NodeClient } from "@/lib/vault/client";
 import { NODE_URL } from "@/lib/vault/config";
@@ -31,9 +32,14 @@ function json(body: unknown, status = 200, extra: Record<string, string> = {}) {
   return Response.json(body, { status, headers: { ...NO_STORE, ...extra } });
 }
 
-export async function GET() {
+export async function OPTIONS(req: Request) {
+  return new Response(null, { status: 204, headers: preflightHeaders(req.headers.get("origin")) });
+}
+
+export async function GET(req: Request) {
+  const cors = corsHeaders(req.headers.get("origin"));
   const f = getFaucet();
-  if (!f) return json({ enabled: false });
+  if (!f) return json({ enabled: false }, 200, cors);
   const node = new NodeClient(NODE_URL);
   let low = false;
   try {
@@ -50,22 +56,23 @@ export async function GET() {
     ceilingVault: Number(f.limits.ceilingUvault / UVAULT_PER_VAULT),
     cooldownHours: f.limits.addressWindowMs / 3_600_000,
     low,
-  });
+  }, 200, cors);
 }
 
 export async function POST(req: Request) {
+  const cors = corsHeaders(req.headers.get("origin"));
   const f = getFaucet();
-  if (!f) return json({ error: "The faucet is not configured on this deployment.", code: "disabled" }, 503);
+  if (!f) return json({ error: "The faucet is not configured on this deployment.", code: "disabled" }, 503, cors);
   const raw = await req.text();
-  if (raw.length > 1024) return json({ error: "Request too large.", code: "bad_request" }, 413);
+  if (raw.length > 1024) return json({ error: "Request too large.", code: "bad_request" }, 413, cors);
   let address: unknown;
   try {
     address = (JSON.parse(raw) as { address?: unknown }).address;
   } catch {
-    return json({ error: 'Send JSON like {"address":"vault1…"}.', code: "bad_request" }, 400);
+    return json({ error: 'Send JSON like {"address":"vault1…"}.', code: "bad_request" }, 400, cors);
   }
-  if (typeof address !== "string") return json({ error: 'Send JSON like {"address":"vault1…"}.', code: "bad_request" }, 400);
+  if (typeof address !== "string") return json({ error: 'Send JSON like {"address":"vault1…"}.', code: "bad_request" }, 400, cors);
   const r = await f.drip(address, clientIp(req.headers));
-  if (r.ok) return json(r);
-  return json(r, r.status, r.retryAfterSeconds ? { "Retry-After": String(r.retryAfterSeconds) } : {});
+  if (r.ok) return json(r, 200, cors);
+  return json(r, r.status, { ...cors, ...(r.retryAfterSeconds ? { "Retry-After": String(r.retryAfterSeconds) } : {}) });
 }

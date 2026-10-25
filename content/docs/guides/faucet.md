@@ -55,6 +55,7 @@ The in-memory counters reset on a cold start and are not shared between serverle
 - A route handler (`app/api/faucet/route.ts`) holds a **dedicated key**, in the server-only environment variable `FAUCET_PRIVATE_KEY`. It is a normal secp256k1 key used for nothing else, not a validator, provider or user key, and it holds a small balance. It is never sent to the browser.
 - A request is validated, rate limited, and then the handler signs an ordinary `bank/Send` of 100 VAULT with the standard 1,000 uvault fee and submits it to the node like any other client, then waits for the block that includes it. There is no special privilege on the chain.
 - Requests are handled one at a time per server instance, using the node's `pending_nonce`, so concurrent requests do not collide on nonce.
+- The [upload site](https://vaultchain-upload.vercel.app) is a different origin, so it calls this endpoint straight from the browser. The route answers CORS for an **exact allow-list of origins** (by default only `https://vaultchain-upload.vercel.app`; never `*`, no credentials), set with the optional `FAUCET_ALLOWED_ORIGINS` variable (comma separated, or `none`). Calling from the browser, rather than through a proxy on the upload site, keeps the per-IP limit meaningful: the faucet sees the real visitor address.
 - The code is `lib/faucet.ts` (logic, with unit tests that use a fake node) and the route handler.
 
 ## Run your own
