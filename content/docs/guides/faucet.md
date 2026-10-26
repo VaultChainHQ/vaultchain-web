@@ -42,13 +42,13 @@ A faucet drip is a transfer *to* you, so it does not put your public key on chai
 | Limit | Value | How it is enforced |
 |---|---|---|
 | Drip | 100 VAULT (100,000,000 uvault) | fixed in code |
-| Per address | one drip per 24 h | in memory, per server instance |
-| Per client IP | 3 drips per 24 h, 20 requests per hour | in memory, per server instance |
-| Per server instance | 40 drips per 24 h | in memory |
+| Per address | one drip per 24 h | in memory and in the Vercel Runtime Cache (shared by instances in a region) |
+| Per client IP | 3 drips per 24 h, 20 requests per hour | in memory and in the Vercel Runtime Cache |
+| Whole faucet | 40 drips per 24 h | in memory and in the Vercel Runtime Cache |
 | Recipient balance | refused at 50 VAULT or more | read from the chain on every request, so it holds across instances |
 | Faucet balance | funded with about 3,000 VAULT; refuses when under 110 VAULT | read from the chain, so it is a hard cap on total loss |
 
-The in-memory counters reset on a cold start and are not shared between serverless instances, so a determined person who spreads requests over instances and addresses can take more than one drip per day. What bounds the damage is the last two rows: the balance check works across instances, and the faucet holds only a few thousand test tokens. The operator can add a firewall rate limit on `POST /api/faucet` at the hosting layer; that is outside this code. The client IP comes from the hosting edge headers (`x-real-ip`, then `x-forwarded-for`), which the edge sets itself.
+Each counter is kept twice: in the memory of the server instance, and in the Vercel Runtime Cache under hashed keys (no raw addresses or IPs are stored), so instances in the same region see the same counts. This is best effort and not a database. The cache is regional, not atomic and can evict entries, two requests that arrive at the same moment on different instances can both pass, and if the cache is unavailable the faucet falls back to the per-instance counters. What bounds the damage is the last two rows: the balance check is read from the chain on every request, and the faucet holds only a few thousand test tokens. Set `FAUCET_SHARED_LIMITS=off` to use only the in-memory counters. The client IP comes from the hosting edge headers (`x-real-ip`, then `x-forwarded-for`), which the edge sets itself.
 
 ## How it works
 

@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { DEFAULT_LIMITS, Faucet, WindowCounter, clientIp } from "../lib/faucet";
+import { SharedCounter } from "../lib/faucet-shared";
 import { HttpError } from "../lib/vault/client";
 import { signerFromKey } from "../lib/vault/flows";
 import { keyFromHex } from "../lib/vault/keys";
@@ -205,5 +206,88 @@ describe("faucet UI", () => {
     expect(html).toContain("devnet VAULT");
     expect(html).toContain("Devnet only");
     expect(html).toContain("/docs/guides/faucet");
+  });
+});
+
+describe("faucet: limits shared across instances", () => {
+  class MapKV {
+    m = new Map<string, unknown>();
+    fail = false;
+    async get(k: string) {
+      if (this.fail) throw new Error("store down");
+      return this.m.get(k);
+    }
+    async set(k: string, v: unknown) {
+      if (this.fail) throw new Error("store down");
+      this.m.set(k, structuredClone(v));
+    }
+    async delete(k: string) {
+      if (this.fail) throw new Error("store down");
+      this.m.delete(k);
+    }
+  }
+  // Two "instances": separate Faucet objects (separate in-memory counters), same node, same shared store.
+  function two(limits = {}, kv = new MapKV()) {
+    const node = new FakeNode();
+    node.balances.set(signer.key.address, 3000n * V);
+    const clock = { t: 1_000_000 };
+    const mk = () =>
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      new Faucet({ node: node as any, signer, now: () => clock.t, limits, shared: new SharedCounter(kv) });
+    return { node, kv, clock, one: mk(), other: mk() };
+  }
+  it("keeps the 24 h address cooldown when another instance serves the request", async () => {
+    const { one, other, node, clock } = two();
+    expect((await one.drip(A, "1.1.1.1")).ok).toBe(true);
+    node.balances.set(A, 0n); // spent, so the balance check would not stop a second drip
+    const r = await other.drip(A, "2.2.2.2");
+    expect(r).toMatchObject({ ok: false, status: 429, code: "address_cooldown" });
+    if (!r.ok) expect(r.retryAfterSeconds).toBe(24 * 3600);
+    clock.t += 24 * 3600_000 + 1;
+    expect((await other.drip(A, "2.2.2.2")).ok).toBe(true);
+  });
+  it("keeps the per-IP drip limit across instances", async () => {
+    const { one, other } = two({ ipDrips: 1 });
+    expect((await one.drip(A, "5.5.5.5")).ok).toBe(true);
+    expect(await other.drip(B, "5.5.5.5")).toMatchObject({ ok: false, code: "ip_limit" });
+    expect((await other.drip(B, "6.6.6.6")).ok).toBe(true);
+  });
+  it("keeps the per-IP attempt limit across instances, even for failed attempts", async () => {
+    const { one, other, node } = two({ ipAttempts: 2 });
+    node.balances.set(A, 80n * V);
+    expect(await one.drip(A, "7.7.7.7")).toMatchObject({ status: 409 });
+    expect(await other.drip(A, "7.7.7.7")).toMatchObject({ status: 409 });
+    expect(await one.drip(A, "7.7.7.7")).toMatchObject({ status: 429, code: "too_many_requests" });
+  });
+  it("shares the daily cap", async () => {
+    const { one, other } = two({ globalDrips: 1 });
+    expect((await one.drip(A, "1.1.1.1")).ok).toBe(true);
+    expect(await other.drip(B, "2.2.2.2")).toMatchObject({ ok: false, code: "faucet_busy" });
+  });
+  it("gives shared slots back on failure and when the recipient is already funded", async () => {
+    const { one, other, node } = two();
+    node.balances.set(A, DEFAULT_LIMITS.ceilingUvault);
+    expect(await one.drip(A, "1.1.1.1")).toMatchObject({ status: 409 });
+    node.balances.set(A, 0n);
+    node.failSubmit = new HttpError(500, "boom");
+    expect(await other.drip(A, "1.1.1.1")).toMatchObject({ status: 502 });
+    node.failSubmit = null;
+    expect((await one.drip(A, "1.1.1.1")).ok).toBe(true);
+  });
+  it("falls back to the per-instance limits when the store is down", async () => {
+    const { one, other, kv, node } = two();
+    kv.fail = true;
+    expect((await one.drip(A, "1.1.1.1")).ok).toBe(true);
+    node.balances.set(A, 0n);
+    expect(await one.drip(A, "1.1.1.1")).toMatchObject({ code: "address_cooldown" }); // still enforced locally
+    expect((await other.drip(B, "2.2.2.2")).ok).toBe(true); // and nothing breaks
+  });
+  it("stores hashed keys, never raw addresses or IPs", async () => {
+    const { one, kv } = two();
+    await one.drip(A, "203.0.113.9");
+    const keys = [...kv.m.keys()].join(" ");
+    expect(keys).not.toContain(A);
+    expect(keys).not.toContain("203.0.113.9");
+    expect(kv.m.size).toBeGreaterThan(0);
   });
 });

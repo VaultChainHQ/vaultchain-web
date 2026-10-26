@@ -4,6 +4,7 @@ import { NodeClient } from "@/lib/vault/client";
 import { NODE_URL } from "@/lib/vault/config";
 import { keyFromHex } from "@/lib/vault/keys";
 import { signerFromKey } from "@/lib/vault/flows";
+import { runtimeCacheCounter } from "@/lib/faucet-shared";
 
 // Devnet faucet. FAUCET_PRIVATE_KEY is a server-only secret (a Vercel sensitive env var): it is a
 // dedicated key that holds a small devnet balance and nothing else. See /docs/guides/faucet.
@@ -14,12 +15,16 @@ export const maxDuration = 30;
 const NO_STORE = { "Cache-Control": "no-store" };
 const g = globalThis as unknown as { __vaultFaucet?: Faucet | null };
 
-function getFaucet(): Faucet | null {
+async function getFaucet(): Promise<Faucet | null> {
   if (g.__vaultFaucet !== undefined) return g.__vaultFaucet;
   const hex = process.env.FAUCET_PRIVATE_KEY;
   if (!hex) return (g.__vaultFaucet = null);
   try {
-    g.__vaultFaucet = new Faucet({ node: new NodeClient(NODE_URL), signer: signerFromKey(keyFromHex(hex)) });
+    g.__vaultFaucet = new Faucet({
+      node: new NodeClient(NODE_URL),
+      signer: signerFromKey(keyFromHex(hex)),
+      shared: await runtimeCacheCounter(),
+    });
   } catch {
     // Never echo the key material: report only that it is unusable.
     console.error("faucet: FAUCET_PRIVATE_KEY is set but invalid");
@@ -38,7 +43,7 @@ export async function OPTIONS(req: Request) {
 
 export async function GET(req: Request) {
   const cors = corsHeaders(req.headers.get("origin"));
-  const f = getFaucet();
+  const f = await getFaucet();
   if (!f) return json({ enabled: false }, 200, cors);
   const node = new NodeClient(NODE_URL);
   let low = false;
@@ -61,7 +66,7 @@ export async function GET(req: Request) {
 
 export async function POST(req: Request) {
   const cors = corsHeaders(req.headers.get("origin"));
-  const f = getFaucet();
+  const f = await getFaucet();
   if (!f) return json({ error: "The faucet is not configured on this deployment.", code: "disabled" }, 503, cors);
   const raw = await req.text();
   if (raw.length > 1024) return json({ error: "Request too large.", code: "bad_request" }, 413, cors);

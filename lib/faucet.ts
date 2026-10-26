@@ -6,6 +6,7 @@ import { DENOM } from "./vault/config";
 import { submitMsgs, type Signer } from "./vault/flows";
 import { DEFAULT_FEE } from "./vault/tx";
 import { isValidAddress } from "./vault/keys";
+import type { SharedCounter } from "./faucet-shared";
 
 export const UVAULT_PER_VAULT = 1_000_000n;
 
@@ -101,6 +102,8 @@ export interface FaucetDeps {
   signer: Signer;
   now?: () => number;
   limits?: Partial<FaucetLimits>;
+  /** Optional cross-instance counters. Without it the limits are per server instance. */
+  shared?: SharedCounter | null;
 }
 
 function fail(status: 400 | 409 | 429 | 502 | 503, code: string, error: string, retryMs?: number): DripResult {
@@ -118,8 +121,10 @@ export class Faucet {
   private attempts = new WindowCounter();
   private global = new WindowCounter(2);
   private queue: Promise<unknown> = Promise.resolve();
+  private shared: SharedCounter | null;
 
   constructor(deps: FaucetDeps) {
+    this.shared = deps.shared ?? null;
     this.node = deps.node;
     this.signer = deps.signer;
     this.now = deps.now ?? Date.now;
@@ -157,11 +162,55 @@ export class Faucet {
     const sAddr = this.byAddress.add(address, L.addressWindowMs, t);
     const sIp = this.byIp.add(ip, L.ipWindowMs, t);
     const sAll = this.global.add("all", L.globalWindowMs, t);
-    const release = () => {
+    let sharedHeld = false;
+    const release = async () => {
       this.byAddress.remove(address, sAddr);
       this.byIp.remove(ip, sIp);
       this.global.remove("all", sAll);
+      const S = this.shared;
+      if (S && sharedHeld) {
+        sharedHeld = false;
+        await Promise.all([
+          S.remove("addr", address, L.addressWindowMs, sAddr, t),
+          S.remove("ip", ip, L.ipWindowMs, sIp, t),
+          S.remove("all", "all", L.globalWindowMs, sAll, t),
+        ]);
+      }
     };
+
+    // The same limits across server instances. Best effort: see lib/faucet-shared.ts.
+    const S = this.shared;
+    if (S) {
+      const aw = await S.retryAfterMs("attempts", ip, L.ipAttempts, L.ipAttemptWindowMs, t);
+      if (aw) {
+        await release();
+        return fail(429, "too_many_requests", "Too many requests from this network. Try again later.", aw);
+      }
+      await S.add("attempts", ip, L.ipAttemptWindowMs, t);
+      const [sa, si, sg] = await Promise.all([
+        S.retryAfterMs("addr", address, 1, L.addressWindowMs, t),
+        S.retryAfterMs("ip", ip, L.ipDrips, L.ipWindowMs, t),
+        S.retryAfterMs("all", "all", L.globalDrips, L.globalWindowMs, t),
+      ]);
+      if (sa) {
+        await release();
+        return fail(429, "address_cooldown", "This address already received devnet funds recently.", sa);
+      }
+      if (si) {
+        await release();
+        return fail(429, "ip_limit", "This network has reached the faucet limit for today.", si);
+      }
+      if (sg) {
+        await release();
+        return fail(429, "faucet_busy", "The faucet has reached its daily limit. Try again later.", sg);
+      }
+      sharedHeld = true;
+      await Promise.all([
+        S.add("addr", address, L.addressWindowMs, t),
+        S.add("ip", ip, L.ipWindowMs, t),
+        S.add("all", "all", L.globalWindowMs, t),
+      ]);
+    }
 
     try {
       return await this.serial(async (): Promise<DripResult> => {
@@ -169,12 +218,12 @@ export class Faucet {
         if (!/devnet/i.test(chainId)) return fail(503, "not_devnet", "The faucet only works on the devnet.");
         const [have, mine] = await Promise.all([this.node.balance(address, DENOM), this.node.balance(this.address, DENOM)]);
         if (have >= L.ceilingUvault) {
-          release();
+          await release();
           return fail(409, "already_funded", `This address already holds ${L.ceilingUvault / UVAULT_PER_VAULT}+ VAULT. The faucet only tops up emptier accounts.`);
         }
         const fee = BigInt(DEFAULT_FEE[0].amount);
         if (mine < L.dripUvault + fee + L.reserveUvault) {
-          release();
+          await release();
           return fail(503, "faucet_empty", "The faucet is out of funds. Ask the operator to top it up.");
         }
         const rec = await submitMsgs(this.node as NodeClient, this.signer, [
@@ -191,7 +240,7 @@ export class Faucet {
         };
       });
     } catch (e) {
-      release();
+      await release();
       if (e instanceof HttpError && e.status === 429) return fail(503, "node_busy", "The node is rate limiting right now. Try again in a minute.");
       return fail(502, "node_error", "The devnet node did not accept the transfer. Try again in a minute.");
     }

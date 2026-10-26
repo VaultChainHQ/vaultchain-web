@@ -73,7 +73,7 @@ CI (`.github/workflows/ci.yml`) runs lint, typecheck, tests and a production bui
 
 ## Devnet faucet
 
-`POST /api/faucet` (`lib/faucet.ts`) sends 100 VAULT from a dedicated key to an empty devnet address. It is devnet-only (it refuses unless the chain id contains `devnet`), limits are per address, per IP and per server instance, in memory and therefore best effort, and the faucet's own balance is the hard cap. Details and honest limits: [`content/docs/guides/faucet.md`](content/docs/guides/faucet.md).
+`POST /api/faucet` (`lib/faucet.ts`) sends 100 VAULT from a dedicated key to an empty devnet address. It is devnet-only (it refuses unless the chain id contains `devnet`), limits are per address, per IP and for the whole faucet, kept in memory and mirrored in the Vercel Runtime Cache so instances in a region share them (`lib/faucet-shared.ts`), which is best effort rather than a database, and the faucet's own balance is the hard cap. Details and honest limits: [`content/docs/guides/faucet.md`](content/docs/guides/faucet.md).
 
 ## Layout
 
